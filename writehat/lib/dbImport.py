@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 # handle the uploading of a backupfile
 def dbImport(fileobject):
-    
+
 
     log.debug("dbImport called")
 
@@ -35,7 +35,7 @@ def dbImport(fileobject):
         resultCode = 2
         resultText = "Invalid file extension"
         return resultText,resultCode
-    
+
 
 
     try:
@@ -69,10 +69,11 @@ def dbImport(fileobject):
     'Customer.json',
     'ImageModel.json']
 
-    zipFileSet = []
-    for filename in zip_file.namelist():
-        if filename.endswith('.json'):
-            zipFileSet.append(filename)
+    zipFileSet = [
+        filename
+        for filename in zip_file.namelist()
+        if filename.endswith('.json')
+    ]
 
     if (set(expectedFiles) != set(zipFileSet)):
         print(expectedFiles)
@@ -85,7 +86,7 @@ def dbImport(fileobject):
 
     log.debug("dbImport zip file passed all checks")
 
-   
+
 
 
     ormDict = {}
@@ -107,8 +108,8 @@ def dbImport(fileobject):
             else:
                 imageUUID = fname.split('.')[0].split('/')[1]
                 imageDict[imageUUID] = infile.read()
-    
- 
+
+
 
     # Wipe ORM Database (YIKES)
     log.debug("dbImport Wiping ORM database")
@@ -151,7 +152,7 @@ def dbImport(fileobject):
             p = ImageModel.objects.get(id=imageUUID)
             p.data = data
             p.save()
-           
+
         except:
             # we probbaly had an orphan image, just drop it
             log.debug(f"dbImport failed to match image {imageUUID} with imageModel, possible orphan, dropping")
@@ -174,11 +175,10 @@ def dbImport(fileobject):
       os.remove(tempfilePath)
 
     try:  
-        fout = open(tempfilePath,'w',encoding="utf8")
-        fout.write(ormDict['components.json'])
-        fout.close()
+        with open(tempfilePath,'w',encoding="utf8") as fout:
+            fout.write(ormDict['components.json'])
     except Exception as e:
-        resultText = "Error saving mongo data to temp file: %s" % e
+        resultText = f"Error saving mongo data to temp file: {e}"
         resultCode = 2
         return resultText,resultCode
 
@@ -199,7 +199,7 @@ def dbImport(fileobject):
                               ], stdout=subprocess.PIPE)
 
     except:
-        resultText = "Error during mongoimport: %s" % result
+        resultText = f"Error during mongoimport: {result}"
         resultCode = 2
         return resultText,resultCode
 

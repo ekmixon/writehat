@@ -54,14 +54,14 @@ class Revision(WriteHatBaseModel):
 
 
     # Given a component ID and fieldname, determine what the next version number will be
-    def getNextVersion(id,fieldName):
-        y = Revision.objects.filter(parentId=id,fieldName=fieldName)
+    def getNextVersion(self, fieldName):
+        y = Revision.objects.filter(parentId=self, fieldName=fieldName)
         try:
             version = y.aggregate(Max('version'))['version__max']
         except IndexError as e:
             version = 1
 
-        if version == None:
+        if version is None:
             version = 1
 
         return version + 1

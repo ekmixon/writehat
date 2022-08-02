@@ -55,9 +55,8 @@ class EngagementFinding():
 
         if finding is None:
             raise FindingError(f"engagementFinding UUID {str(id)} does not exist")
-        else:
-            log.debug(f'EngagementFinding.get() called, found a {finding.scoringType} class with UUID {id}')
-            return finding
+        log.debug(f'EngagementFinding.get() called, found a {finding.scoringType} class with UUID {id}')
+        return finding
 
 
     @classmethod
@@ -101,12 +100,13 @@ class EngagementFinding():
         if formClass is None:
             formClass = self.formClass
 
-        initialFormData = dict()
         validFormFields = self._formFields(formClass=formClass)
 
-        for label,value in self._modelToForm().items():
-            if label in validFormFields:
-                initialFormData.update({label: value})
+        initialFormData = {
+            label: value
+            for label, value in self._modelToForm().items()
+            if label in validFormFields
+        }
 
         try:
             self._form_object = formClass(
@@ -200,9 +200,7 @@ class DREADEngagementFinding(EngagementFinding, DREADFinding):
 
     @property
     def impact(self):
-        choices = {}
-        for c in self.formClass.choicesStride:
-            choices[c[0]] = c[1]
+        choices = {c[0]: c[1] for c in self.formClass.choicesStride}
         for i in self.dreadImpact:
             yield choices[i]
     

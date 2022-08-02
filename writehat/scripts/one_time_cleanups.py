@@ -35,10 +35,7 @@ for r in list(Report.objects.all()) + list(SavedReport.objects.all()):
 ### REMOVE ORPHANED COMPONENTS ###
 
 # make a list of all components
-all_components = set()
-for c in client.find({}):
-    all_components.add(uuid.UUID(str(c['_id'])))
-
+all_components = {uuid.UUID(str(c['_id'])) for c in client.find({})}
 # make a list of all the components that are attached to reports
 valid_components = set()
 for r in list(Report.objects.all()) + list(SavedReport.objects.all()):
@@ -63,7 +60,7 @@ for r in all_reports:
 
 ### REMOVE ORPHANED FIGURES ###
 
-all_figures = set([uuid.UUID(str(f.id)) for f in ImageModel.objects.all()])
+all_figures = {uuid.UUID(str(f.id)) for f in ImageModel.objects.all()}
 valid_figures = set()
 for r in list(Report.objects.all()) + list(SavedReport.objects.all()):
     for f in r.figures:

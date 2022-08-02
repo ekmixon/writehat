@@ -76,11 +76,10 @@ class BaseDatabaseFinding(WriteHatBaseModel):
 
         if finding is None:
             raise FindingError(f"DatabaseFinding UUID {str(id)} does not exist")
-        else:
-            log.debug(f'BaseDatabaseFinding.get() called, found a {finding.scoringType} class with UUID {id}')
-            finding.populateForm()
-            finding.clean_fields()
-            return finding
+        log.debug(f'BaseDatabaseFinding.get() called, found a {finding.scoringType} class with UUID {id}')
+        finding.populateForm()
+        finding.clean_fields()
+        return finding
 
 
     @classmethod
@@ -150,15 +149,13 @@ class BaseDatabaseFinding(WriteHatBaseModel):
                                 continue
                             figure.size = figure_dict.get('size', 100)
                             figure.caption = figure_dict.get('caption', '')
-                            log.debug('  figure found (within finding): ' + figure.caption)
+                            log.debug(f'  figure found (within finding): {figure.caption}')
                             self._figure_objects.append(figure)
 
                 except AttributeError:
                     continue
 
-            for figure in self.figures_ending:
-                self._figure_objects.append(figure)
-
+            self._figure_objects.extend(iter(self.figures_ending))
         for figure in self._figure_objects:
             figure._finding_object = self
 
@@ -170,7 +167,7 @@ class BaseDatabaseFinding(WriteHatBaseModel):
 
         # then the other ones
         for figure in ImageModel.objects.filter(findingParent=self.id).order_by('order'):
-            log.debug('  figure found (after finding): ' + figure.caption)
+            log.debug(f'  figure found (after finding): {figure.caption}')
             yield figure
 
 
@@ -314,11 +311,13 @@ class DatabaseOnlyFinding:
         if formClass is None:
             formClass = self.formClass
 
-        initialFormData = dict()
         validFormFields = self._formFields(formClass=formClass)
-        for label,value in self._modelToForm().items():
-            if label in validFormFields:
-                initialFormData.update({label: value})
+        initialFormData = {
+            label: value
+            for label, value in self._modelToForm().items()
+            if label in validFormFields
+        }
+
         self._form_object = formClass(initial=initialFormData)
         return self._form_object
 
@@ -368,9 +367,7 @@ def getFindingsTree(categoriesOnly=False):
 
     log.debug('[!]Running getFindingsTree')
     rootNode = DatabaseFindingCategory.getRootNode()
-    findingsTree = growFindingsTree(str(rootNode.id))
-
-    return findingsTree
+    return growFindingsTree(str(rootNode.id))
 
 
 def getFindingsFlat(scoringType):

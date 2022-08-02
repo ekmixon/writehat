@@ -100,7 +100,7 @@ urlpatterns = [
     url(rf'^engagements/fgroup/{uuid}/finding/list$', views.engagementFindingList),
 
     url(rf'^engagements/{uuid}/excel$', views.engagementFindingExcel),
-    
+
     url(rf'^engagements/fgroup/finding/edit/{uuid}$', views.engagementFindingEdit),
     url(rf'^engagements/fgroup/finding/delete/{uuid}$', views.engagementFindingDelete),
     url(rf'^engagements/fgroup/{fgroup}/finding/import/{uuid}$', views.engagementFindingImport),

@@ -111,10 +111,7 @@ def intOrFail(maybeInt):
 @require_http_methods(['POST'])
 @csrf_exempt
 def validationDREAD(request):
-    d = {}
-    # a bit ugly in exchange for maximum security
-    #try:
-    d['dreadDamage'] = intOrFail(request.POST['dreadDamage'])
+    d = {'dreadDamage': intOrFail(request.POST['dreadDamage'])}
     d['dreadReproducibility'] = intOrFail(request.POST['dreadReproducibility'])
     d['dreadExploitability'] = intOrFail(request.POST['dreadExploitability'])
     d['dreadAffectedUsers'] = intOrFail(request.POST['dreadAffectedUsers'])
@@ -267,8 +264,7 @@ def reportCreate(request, uuid=None, fromTemplate=False):
     decodedJson = json.loads(jsondata)
 
     # Validate that required keys are present in JSON
-    if not all([k in decodedJson for k in \
-        ['name', 'reportComponents']]):
+    if any(k not in decodedJson for k in ['name', 'reportComponents']):
         response = HttpResponse('Invalid Data!')
         response.status_code = 400
         return response
@@ -282,13 +278,10 @@ def reportCreate(request, uuid=None, fromTemplate=False):
         if uuid:
             log.debug(f"saving report (with engagementParent) reportComponents: {reportComponents}")
             report = Report.new(name=reportName, components=reportComponents,engagementParent=uuid)
-        #    report.engagementParent = uuid
-       #     report.save()
+        elif fromTemplate:
+            report = SavedReport.new(name=reportName, components=reportComponents)
         else:
-            if fromTemplate:
-                report = SavedReport.new(name=reportName, components=reportComponents)
-            else:
-                report = Report.new(name=reportName, components=reportComponents)
+            report = Report.new(name=reportName, components=reportComponents)
 
     except ReportValidationError:
         log.warn("reportCreate() threw ReportValidationError")
@@ -390,7 +383,7 @@ def reportUpdate(request,uuid,fromTemplate=False):
 
 
     except ReportValidationError as e:
-        if len(str(e)) == 0:
+        if not str(e):
             e = "UNDEFINED"
         error_msg = f"Component Validation Error ({e})"
         log.error(error_msg)
@@ -490,7 +483,7 @@ def getReportComponents(request, uuid):
 
 
 # Renders the requested pane in panes/*.html
-@csrf_protect 
+@csrf_protect
 @require_http_methods(['POST'])
 def renderPane(request, pane):
 
@@ -522,21 +515,24 @@ def renderPane(request, pane):
     except KeyError:
         engagement = ''
 
-    response = render(request,'panes/{}.html'.format(pane), \
+    return render(
+        request,
+        f'panes/{pane}.html',
         {
             'report': report,
             'finding': finding,
             'component': component,
             'componentsList': settings.VALID_COMPONENTS,
-            'findingsTree': (getFindingsTree('findings') if pane == 'categoryBrowse' else '')
-        })
-
-    return response
+            'findingsTree': (
+                getFindingsTree('findings') if pane == 'categoryBrowse' else ''
+            ),
+        },
+    )
 
 
 
 # Renders the requested modal in modals/*.html
-@csrf_protect 
+@csrf_protect
 @require_http_methods(['POST'])
 def renderModal(request, modal):
 
@@ -568,9 +564,7 @@ def renderModal(request, modal):
 
     # findingGroup
     findingImportForm = None
-    fgroupID = itemIDs.get('fgroupID', '').strip()
-
-    if fgroupID:
+    if fgroupID := itemIDs.get('fgroupID', '').strip():
         fgroup = BaseFindingGroup.get_child(id=itemIDs['fgroupID'])
         fgroup.populateForm(formClass=EditFgroupForm)
         editFgroupForm = fgroup.form
@@ -580,7 +574,9 @@ def renderModal(request, modal):
         fgroup = ''
         editFgroupForm = EditFgroupForm
 
-    response = render(request, f'modals/{modal}.html', \
+    return render(
+        request,
+        f'modals/{modal}.html',
         {
             'modalName': modal,
             'engagement': engagement,
@@ -593,10 +589,9 @@ def renderModal(request, modal):
             'savedReportImportForm': SavedReportImportForm,
             'categoryAddForm': CategoryAddForm,
             'customerForm': CustomerForm(auto_id=CustomerForm.auto_id_str),
-            'categoryEditForm': CategoryAddForm(auto_id='id_edit_%s')
-        })
-
-    return response
+            'categoryEditForm': CategoryAddForm(auto_id='id_edit_%s'),
+        },
+    )
 
 
 
@@ -619,7 +614,6 @@ def reportClone(request,uuid):
 @csrf_protect
 @xframe_options_exempt
 @require_http_methods(['POST', 'GET'])
-# GET the report ID from the URL
 def reportGenerate(request,uuid):
     '''
     Render/preview a Report, SavedReport, or Component
@@ -651,12 +645,10 @@ def reportGenerate(request,uuid):
             report = SavedReport.get(id=component.reportParent)
         components = [component]
         report.components = components
-        response = HttpResponse(report.render(), content_type='text/html; charset=utf-8')
-        return response 
+        return HttpResponse(report.render(), content_type='text/html; charset=utf-8') 
 
 @csrf_protect
 @require_http_methods(['POST', 'GET'])
-# GET the report ID from the URL
 def reportGeneratePdf(request,uuid):
     '''
     Render/preview a Report, SavedReport, or Component directly to PDF
@@ -674,7 +666,7 @@ def reportGeneratePdf(request,uuid):
             '--disable-dev-shm-usage', '--ignore-certificate-errors',
             '--allow-running-insecure-content']:
         ch.add_argument(a)
-    
+
     # Connect to Chrome with the specified arguments
     browser = webdriver.Remote(command_executor="http://chrome:4444/wd/hub", options=ch)
 
@@ -694,8 +686,6 @@ def reportGeneratePdf(request,uuid):
         log.debug("added clookie")
     except InvalidCookieDomainException:
         log.debug("Got InvalidCookieDomainException")
-        pass
-
     uri_path = request.path.replace("/generatePdf", "/generate")
     uri = f"{uri_base}/{uri_path}"
     log.debug(f"Requesting uri: {uri}")
@@ -717,7 +707,6 @@ def reportGeneratePdf(request,uuid):
         log.debug("Selenium logs:")
         log.debug(browser.get_log("driver"))
         log.debug(browser.get_log("browser"))
-
 #       # Close the browser
         browser.close()
 
@@ -815,10 +804,10 @@ def findingFigureEdit(request, uuid):
     '''
     Updates a finding's list of figures
     '''
-    
+
     findingParent = uuid
     successfulUpdateCount = 0
-       
+
     try: 
         parsedJSON = json.loads(request.body)
     except json.JSONDecodeError:
@@ -827,8 +816,10 @@ def findingFigureEdit(request, uuid):
     # get finding's current list of figures
     old_figures = []
     try:
-        for figure in ImageModel.objects.filter(findingParent=findingParent):
-            old_figures.append(figure)
+        old_figures.extend(
+            iter(ImageModel.objects.filter(findingParent=findingParent))
+        )
+
     except ImageModel.DoesNotExist:
         pass
 
@@ -837,7 +828,7 @@ def findingFigureEdit(request, uuid):
         EngagementFinding.get_child(id=uuid)
         log.debug(f"findingFigureEdit called with findingParent {findingParent}")
     except FindingError:
-        log.debug(f"findingFigureEdit aborted - finding ID invalid")
+        log.debug("findingFigureEdit aborted - finding ID invalid")
         raise ImagesUploadError(f'findingParent "{findingParent}" does not exist')
 
 
@@ -863,7 +854,7 @@ def findingFigureEdit(request, uuid):
                 log.debug(f"findingFigureEdit failed to save for imageModel {imageModel.id}, with parentID: {findingParent}")
 
         else:
-            log.debug(f"findingFigureEdit called with missing figureID")
+            log.debug("findingFigureEdit called with missing figureID")
 
     # handle deleted figures - this helps prevent orphans in the database
     new_figures = [f['guid'] for f in parsedJSON]
@@ -880,57 +871,53 @@ def findingFigureEdit(request, uuid):
 @require_http_methods(['POST'])
 def imageUpload(request):
 
-    log.debug(f"imageUpload called")
-    
+    log.debug("imageUpload called")
+
+    if not request.FILES['file']:
+        raise ImagesUploadError("File data not present")
+    imageModel = ImageModel()
+    uploadedFile = request.FILES['file']
+
+
+    # retreive and validate the content type of the image (based on the extension)
+    extension = uploadedFile.name.split(".")[1].lower()
     extensionToContentType = {'png':'image/png',
                               'jpg':'image/jpeg',
                               'jpeg':'image/jpeg',}
 
-    # check if a file is present
-    if request.FILES['file']:
-    
-        imageModel = ImageModel()
-        uploadedFile = request.FILES['file']
-        
-        
-        # retreive and validate the content type of the image (based on the extension)
-        extension = uploadedFile.name.split(".")[1].lower()
-        contentType = str(extensionToContentType.get(extension ,"error"))
-        log.debug(f"Image uploaded with content-type {contentType}")
-        imageModel.contentType = contentType
-        log.debug(f"imageUpload called with content-type {contentType}")
-        if contentType == "error": 
-            raise ImagesUploadError("Invalid file extension for uploaded image")
-        
-        imageModel.data = uploadedFile.read()
-        if 'findingParent' in request.POST:
-            findingParent = request.POST["findingParent"]
-            try:
-                CVSSEngagementFinding.get(id=findingParent)
-                log.debug(f"imageUpload called with findingParent {findingParent}")
-            except CVSSEngagementFinding.DoesNotExist:
-                log.debug(f"imageUpload aborted - finding ID invalid")
-                raise ImagesUploadError(f'findingParent "{findingParent}" does not exist')
-            imageModel.findingParent = request.POST["findingParent"]
-            if 'order' in request.POST:
-                imageModel.order = request.POST['order']
-            else:
-                raise ImagesUploadError("Files attached to findings must specifiy order")
+    contentType = str(extensionToContentType.get(extension ,"error"))
+    log.debug(f"Image uploaded with content-type {contentType}")
+    imageModel.contentType = contentType
+    log.debug(f"imageUpload called with content-type {contentType}")
+    if contentType == "error": 
+        raise ImagesUploadError("Invalid file extension for uploaded image")
+
+    imageModel.data = uploadedFile.read()
+    if 'findingParent' in request.POST:
+        findingParent = request.POST["findingParent"]
+        try:
+            CVSSEngagementFinding.get(id=findingParent)
+            log.debug(f"imageUpload called with findingParent {findingParent}")
+        except CVSSEngagementFinding.DoesNotExist:
+            log.debug("imageUpload aborted - finding ID invalid")
+            raise ImagesUploadError(f'findingParent "{findingParent}" does not exist')
+        imageModel.findingParent = request.POST["findingParent"]
+        if 'order' in request.POST:
+            imageModel.order = request.POST['order']
         else:
-             log.debug(f"imageUpload called with no findingParent")
-
-        if 'caption' in request.POST:
-            imageModel.caption = request.POST["caption"]
-        if 'size' in request.POST:
-            imageModel.size = request.POST["size"]
-
-
-        imageModel.save()
-        log.debug(f"imageUpload successfully saved with resulting ID: {imageModel.id}")
-        return HttpResponse(imageModel.id)
-
+            raise ImagesUploadError("Files attached to findings must specifiy order")
     else:
-        raise ImagesUploadError("File data not present")
+        log.debug("imageUpload called with no findingParent")
+
+    if 'caption' in request.POST:
+        imageModel.caption = request.POST["caption"]
+    if 'size' in request.POST:
+        imageModel.size = request.POST["size"]
+
+
+    imageModel.save()
+    log.debug(f"imageUpload successfully saved with resulting ID: {imageModel.id}")
+    return HttpResponse(imageModel.id)
 
 
 # render the image
@@ -1010,8 +997,7 @@ def findingCategoryAdd(request):
     try:
         validation.isValidName(categoryName)
     except ValidationError:
-        response = HttpResponse("Invalid Category Name",status=400)
-        return response
+        return HttpResponse("Invalid Category Name",status=400)
 
     # create the new category
     newCategory = DatabaseFindingCategory(name=categoryName, categoryParent=parentUUID)
@@ -1136,7 +1122,10 @@ def revisionLoad(request):
     id = request.POST["UUID"]
     version = request.POST["version"]
     fieldName = request.POST["fieldName"]
-    log.debug("Views.loadRevision called; UUID: %s (fieldName: %s, version: %s)" % (id,fieldName,version))
+    log.debug(
+        f"Views.loadRevision called; UUID: {id} (fieldName: {fieldName}, version: {version})"
+    )
+
     try:
         p = Revision.get(parentId=id,fieldName=fieldName,version=version)
     except Revision.DoesNotExist:
@@ -1157,7 +1146,10 @@ def revisionCompare(request):
     currentText = request.POST["currentText"]
     version = request.POST["version"]
     fieldName = request.POST["fieldName"]
-    log.debug("Views.compareRevision called; UUID: %s (fieldName: %s, version: %s)" % (id,fieldName,version))
+    log.debug(
+        f"Views.compareRevision called; UUID: {id} (fieldName: {fieldName}, version: {version})"
+    )
+
     try:
         p = Revision.get(parentId=id,fieldName=fieldName,version=version)
     except Revision.DoesNotExist:
@@ -1169,7 +1161,7 @@ def revisionCompare(request):
 
 @require_http_methods(['GET'])
 def engagementNew(request):
-    log.debug(f"engagementNew called")
+    log.debug("engagementNew called")
     return render(request,"pages/engagementNew.html",{"form": EngagementForm})
 
 
@@ -1203,13 +1195,17 @@ def engagementEdit(request,uuid):
         # instantiate a cvssFinding object by passing in an instance of the model
         #findingsForm = CVSSForm(engagementId=engagement.id)
         log.debug(f'engagementEdit (GET) called, loading data for engagement with UUID: {engagement.id}')
-        return render(request,"pages/engagementEdit.html",{
-            'engagement': engagement,
-            'findingDownloadExcel': f'/engagements/{engagement.id}/excel',
-            'fgroupAdd': f'/engagements/'
+        return render(
+            request,
+            "pages/engagementEdit.html",
+            {
+                'engagement': engagement,
+                'findingDownloadExcel': f'/engagements/{engagement.id}/excel',
+                'fgroupAdd': '/engagements/',
+            },
+        )
 
-        })
-        # "form":form,"isApproved":cvssFinding.isApproved
+            # "form":form,"isApproved":cvssFinding.isApproved
 
     elif request.method == 'POST':
         log.debug(f'engagementEdit (POST) called, attempting to save data for engagement with UUID: {engagement.id}')
@@ -1257,14 +1253,12 @@ def engagementDelete(request,uuid):
 def engagementsList(request):
     engagements = Engagement.objects.all()
     if request.method == 'GET':
-        log.debug(f'enagagementsList (GET) called')
+        log.debug('enagagementsList (GET) called')
         return render(request,"pages/engagements.html",{'engagements':engagements})
 
     elif request.method == 'POST':
-        engagementsList = []
-        for engagement in engagements:
-            engagementsList.append(str(engagement.id))
-        log.debug(f'enagagementsList (POST) called')
+        engagementsList = [str(engagement.id) for engagement in engagements]
+        log.debug('enagagementsList (POST) called')
         return JsonResponse(engagementsList)
 
 
@@ -1326,21 +1320,15 @@ def engagementFgroupStatus(request,uuid):
 @csrf_protect
 @require_http_methods(['POST'])
 def engagementFgroupList(request,uuid):
-    fgroupsDict = {}
     log.debug(f"engagementFgroupList called for UUID {uuid}; request.method: {request.method}")
 
-    CVSSFGroupList = []
     CVSSFgroups = CVSSFindingGroup.objects.filter(engagementParent=uuid)
     log.debug(list(CVSSFgroups))
-    for i in CVSSFgroups:
-        CVSSFGroupList.append({'id':str(i.id),'name':str(i.name)})
-    fgroupsDict['CVSS'] = CVSSFGroupList
-
-    DreadFGroupList = []
+    CVSSFGroupList = [{'id':str(i.id),'name':str(i.name)} for i in CVSSFgroups]
+    fgroupsDict = {'CVSS': CVSSFGroupList}
     DreadFgroups = DREADFindingGroup.objects.filter(engagementParent=uuid)
     log.debug(list(DreadFgroups))
-    for i in DreadFgroups:
-        DreadFGroupList.append({'id':str(i.id),'name':str(i.name)})
+    DreadFGroupList = [{'id':str(i.id),'name':str(i.name)} for i in DreadFgroups]
     fgroupsDict['DREAD'] = DreadFGroupList
     return JsonResponse(fgroupsDict)
 
@@ -1389,7 +1377,10 @@ def engagementFindingDelete(request,uuid):
         cvssEngagementFinding.delete()
         response = HttpResponse(f'Successfully deleted cvssEngagementFinding "{escape(name)}"')
         response.status_code = 200
-        return HttpResponseRedirect('/engagements/edit/%s' % str(cvssEngagementFinding.engagementParent))
+        return HttpResponseRedirect(
+            f'/engagements/edit/{str(cvssEngagementFinding.engagementParent)}'
+        )
+
 
     except CVSSEngagementFinding.DoesNotExist:
         log.debug(f'No report found with ID {uuid}')
@@ -1498,8 +1489,8 @@ def engagementFindingExcel(request,uuid):
     )
 
     response['Content-Disposition'] = f'attachment; filename=Engagement_{str(uuid)}.xlsx'
- 
-    
+
+
     # get finished workbook from excel.py
     workbook = generateExcel(
         CVSSEngagementFindings,
@@ -1518,7 +1509,7 @@ def engagementFindingEdit(request, uuid):
     log.info(f"engagementFindingEdit called for UUID {uuid}; request.method: {request.method}")
 
     finding = EngagementFinding.get_child(uuid)
-    
+
     if request.method == 'GET':
         finding.populateForm()
         return render(
@@ -1530,7 +1521,7 @@ def engagementFindingEdit(request, uuid):
         )
 
     elif request.method == 'POST':
-        log.debug(f"engagementFindingEdit POST request")
+        log.debug("engagementFindingEdit POST request")
         finding.updateFromPostData(request.POST,finding.formClass)
         finding.save()
         return HttpResponse(finding.id)
@@ -1604,11 +1595,11 @@ def customersList(request):
     customers = Customer.objects.all()
 
     if request.method == 'GET':
-        log.debug(f'customersList (GET) called')
+        log.debug('customersList (GET) called')
         return render(request,"pages/customers.html",{'customers': customers})
 
     elif request.method == 'POST':
-        log.debug(f'customersList (POST) called')
+        log.debug('customersList (POST) called')
         return JsonResponse([str(c.id) for c in customers])
 
 
@@ -1723,7 +1714,7 @@ def reportCreateFromTemplate(request,uuid):
 # Loads the page where a user can select the components they want in their new reports (for templates)
 @require_http_methods(['GET'])
 def templateNew(request):
-    log.debug(f"templateNew called;")
+    log.debug("templateNew called;")
     componentList = settings.VALID_COMPONENTS
     return render(
         request,"pages/savedReportNew.html",
@@ -1767,15 +1758,9 @@ def pageNew(request):
 
     pageTemplate = PageTemplate()
 
-    response = render(
-        request,
-        'pages/pageTemplateNew.html',
-        {
-            'page': pageTemplate
-        }
+    return render(
+        request, 'pages/pageTemplateNew.html', {'page': pageTemplate}
     )
-
-    return response
 
 @csrf_protect
 @require_http_methods(['POST'])
@@ -1790,19 +1775,13 @@ def pageCreate(request):
 
 @csrf_protect
 def pageEdit(request, uuid):
-    
+
     pageTemplate = PageTemplate.get(id=uuid)
     pageTemplate.populateForm()
 
-    response = render(
-        request,
-        'pages/pageTemplateEdit.html',
-        {
-            'page': pageTemplate
-        }
+    return render(
+        request, 'pages/pageTemplateEdit.html', {'page': pageTemplate}
     )
-
-    return response
 
 @csrf_protect
 def pageDelete(request, uuid):
@@ -1836,14 +1815,14 @@ def pageClone(request, uuid):
 @user_passes_test(lambda u: u.is_superuser)
 @require_http_methods(['GET'])
 def admintoolsHome(request):
-    log.debug(f"adminHome called")
+    log.debug("adminHome called")
     return render(request,"pages/admin.html",{})
 
 
 @user_passes_test(lambda u: u.is_superuser)
 @require_http_methods(['GET'])
 def admintoolsBackup(request):
-    log.debug(f"admintoolsBackup called")
+    log.debug("admintoolsBackup called")
     zipfile = dbExport()
     response = HttpResponse()
     response.write(zipfile)
@@ -1856,25 +1835,20 @@ def admintoolsBackup(request):
 @require_http_methods(['POST'])
 @csrf_protect
 def admintoolsRestore(request):
-    log.debug(f"admintoolsRestore called")
+    log.debug("admintoolsRestore called")
     if request.FILES['file']:
         uploadedFile = request.FILES['file']
         resultText,resultCode = dbImport(uploadedFile)
         if resultCode == 1:
             response = HttpResponse('OK')
             response.status_code = 200
-        elif resultCode == 2:
-            response = HttpResponse(escape(resultText))
-            response.status_code = 400
         else:
             response = HttpResponse(escape(resultText))
             response.status_code = 400
-        return response  
-
-
     else:
         response = HttpResponse('Missing backup file')
-        response.status_code = 400
-        return response  
+        response.status_code = 400  
+
+    return response  
 
 

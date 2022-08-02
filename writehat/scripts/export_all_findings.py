@@ -46,7 +46,7 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = CVSSSheet.cell(row=row_num, column=col_num)
         cell.value = column_title
-    
+
     # Iterate through CVSSEngagementFindings
     for i in CVSSEngagementFindings:
         log.debug("  Finding: {0}".format(i.id))
@@ -92,7 +92,6 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = DREADSheet.cell(row=row_num, column=col_num)
         cell.value = column_title
-
    # Iterate through DREADEngagementFindings
     for i in DREADEngagementFindings:
         log.debug("  Finding: {0}".format(i.id))
@@ -133,7 +132,6 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = ProactiveSheet.cell(row=row_num, column=col_num)
         cell.value = column_title
-
    # Iterate through ProactiveEngagementFindings
     for i in ProactiveEngagementFindings:
         log.debug("  Finding: {0}".format(i.id))
@@ -151,7 +149,6 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
             ]
         except Engagement.DoesNotExist:
             pass
-
     # Assign the titles for each cell of the header
         for col_num, cell_value in enumerate(row, 1):
             cell = ProactiveSheet.cell(row=row_num, column=col_num)
@@ -159,7 +156,7 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
                 cell.value = unidecode(cell_value)
             except:
                 pass
-    
+
 
 
 
@@ -178,7 +175,7 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = CVSSSheetDatabase.cell(row=row_num, column=col_num)
         cell.value = column_title
-    
+
     # Iterate through CVSSEngagementFindings
     for i in CVSSDatabaseFindings:
         log.debug("  Finding: {0}".format(i.id))
@@ -217,7 +214,6 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = DREADSheetDatabase.cell(row=row_num, column=col_num)
         cell.value = column_title
-
    # Iterate through DREADEngagementFindings
     for i in DREADDatabaseFindings:
         log.debug("  Finding: {0}".format(i.id))
@@ -253,7 +249,6 @@ def generateExcel(CVSSEngagementFindings, DREADEngagementFindings, ProactiveEnga
     for col_num, column_title in enumerate(columns, 1):
         cell = ProactiveSheetDatabase.cell(row=row_num, column=col_num)
         cell.value = column_title
-
    # Iterate through ProactiveEngagementFindings
     for i in ProactiveDatabaseFindings:
         log.debug("  Finding: {0}".format(i.id))

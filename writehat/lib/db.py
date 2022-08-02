@@ -23,10 +23,7 @@ class BaseField():
 
     def __init__(self, templatable=False, default=None):
 
-        if default is not None:
-            self.defaultValue = default
-        else:
-            self.defaultValue = self._defaultValue
+        self.defaultValue = default if default is not None else self._defaultValue
         self.templatable = templatable
 
 
@@ -162,7 +159,6 @@ class JSONModel(attr_dict):
             self['modifiedDate'] = datetime.now()
             self['name'] = str(name)
 
-        # otherwise, go get the data
         else:
             self['_id'] = uuid.UUID(str(id))
             self.fetch()
@@ -170,7 +166,7 @@ class JSONModel(attr_dict):
             # fill in missing fields with default values
             # this is needed if a new field was added which doesn't have values yet
             for k,v in self.validFields.items():
-                if not k in self:
+                if k not in self:
                     self.update({k: v.defaultValue})
 
 
@@ -225,7 +221,7 @@ class JSONModel(attr_dict):
 
     def save(self, updateTimestamp=True):
 
-        log.debug(f'db.save() called')
+        log.debug('db.save() called')
         if updateTimestamp:
             self['modifiedDate'] = datetime.now()
         result = self._mongo_op(self.collection.update, {'_id': self.id}, self, upsert=True)
@@ -241,7 +237,10 @@ class JSONModel(attr_dict):
     def fetch(self):
 
         self.collection
-        db_result = self._mongo_op(self.db['report_' + self._collection].find_one, {'_id': self.id})
+        db_result = self._mongo_op(
+            self.db[f'report_{self._collection}'].find_one, {'_id': self.id}
+        )
+
         if db_result is None:
             db_result = self._mongo_op(self.db[self._collection].find_one, {'_id': self.id})
 
@@ -268,7 +267,7 @@ class JSONModel(attr_dict):
 
     def update(self, dictionary, templatableOnly=False):
 
-        log.debug(f"db.update() called")
+        log.debug("db.update() called")
         for key,value in dictionary.items():
             if key in self.validFields:
                 if (not templatableOnly) or self.validFields[key].templatable == True:
@@ -285,7 +284,7 @@ class JSONModel(attr_dict):
                 yield result['_id']
 
         if report:
-            for result in cls._mongo_op(settings.MONGO_DB['report_' + cls._collection].find, {}, {'_id': True}):
+            for result in cls._mongo_op(settings.MONGO_DB[f'report_{cls._collection}'].find, {}, {'_id': True}):
                 yield result['_id']
 
 

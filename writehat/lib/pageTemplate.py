@@ -59,11 +59,7 @@ class PageTemplate(WriteHatBaseModel):
 
     def renderHeader(self):
 
-        if self.header:
-            header = str(self.header)
-        else:
-            header = ''
-
+        header = str(self.header) if self.header else ''
         try:
             header = render_markdown(
                 header,
@@ -80,11 +76,7 @@ class PageTemplate(WriteHatBaseModel):
 
     def renderFooter(self):
 
-        if self.footer:
-            footer = str(self.footer)
-        else:
-            footer = ''
-
+        footer = str(self.footer) if self.footer else ''
         try:
             footer = render_markdown(
                 footer,
@@ -104,12 +96,10 @@ class PageTemplate(WriteHatBaseModel):
         super().updateFromForm(form)
 
         # if default is set, unset from others
-        if form.is_valid():
-
-            if form.cleaned_data['default'] == True:
-                for page in PageTemplate.objects.filter(default=True):
-                    page.default = False
-                    page.save()
+        if form.is_valid() and form.cleaned_data['default'] == True:
+            for page in PageTemplate.objects.filter(default=True):
+                page.default = False
+                page.save()
 
 
     def populateForm(self, *args, **kwargs):

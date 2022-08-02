@@ -86,9 +86,7 @@ class Component(BaseComponent):
                 except (AttributeError, ValueError):
                     pass
                 if findingFgroupID == fgroupID:
-                    for figure in finding.figures:
-                        figures.append(figure)
-
+                    figures.extend(iter(finding.figures))
         except AttributeError as e:
             # this report doesn't have findings
             pass
@@ -98,7 +96,7 @@ class Component(BaseComponent):
 
     @property
     def iconColorDynamic(self):
-    
+
         try:
             if self.getFindingGroup.scoringType == 'DREAD':
                 return 'var(--dread-color)'

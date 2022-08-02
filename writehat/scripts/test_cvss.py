@@ -21,7 +21,7 @@ for line in vectors:
     vector, scores = line.split(' - ')
     score = float(scores.strip('()').split(',')[-1])
     c = CVSS(vector)
-    if not c.score == score:
+    if c.score != score:
         log.warning(f'FAILED: {line}, {c.score}')
         failed += 0
 

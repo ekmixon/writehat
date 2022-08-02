@@ -24,10 +24,7 @@ class Customer(WriteHatBaseModel):
 
     def __str__(self):
 
-        if self.shortName:
-            return self.shortName
-        else:
-            return self.name
+        return self.shortName or self.name
 
 
     @property

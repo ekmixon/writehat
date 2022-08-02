@@ -8,8 +8,7 @@ class BaseBootstrapSelect(widgets.Input):
     input_type = 'text'
 
     def get_context(self, name, value, attrs):
-        context = super().get_context(name, value, attrs)
-        return context
+        return super().get_context(name, value, attrs)
 
 
 
@@ -55,7 +54,7 @@ class FindingBootstrapSelect(BaseBootstrapSelect):
 
     def __init__(self, attrs=None, scoringType=None):
         super(FindingBootstrapSelect, self).__init__()
-        if scoringType == None:
+        if scoringType is None:
             raise FindingImportError('FindingBootstrapSelect cannot resolve finding type')
 
         self.scoringType = scoringType

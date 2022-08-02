@@ -130,8 +130,7 @@ class BaseReport(WriteHatBaseModel):
     def flattened_components(self):
 
         for component in self.components:
-            for c in component.flatten():
-                yield c
+            yield from component.flatten()
 
 
     @property
@@ -255,7 +254,7 @@ class BaseReport(WriteHatBaseModel):
             [ log.debug(f"  {k}: {newComponents[k]}") for k in range(len(newComponents)) ]
 
             # Save the reports component
-            log.debug(f"self._components before overwrite:")
+            log.debug("self._components before overwrite:")
             j = json.loads(self._components)
             [ log.debug(f"  {k}: {j[k]}") for k in range(len(j)) ]
 
@@ -268,7 +267,7 @@ class BaseReport(WriteHatBaseModel):
             [ log.debug(f"  {k}: {newComponents[k]}") for k in range(len(newComponents)) ]
 
             # Save the reports component
-            log.debug(f"self._components at Report.save():")
+            log.debug("self._components at Report.save():")
             j = json.loads(self._components)
             [ log.debug(f"  {k}: {j[k]}") for k in range(len(j)) ]
 
@@ -277,7 +276,7 @@ class BaseReport(WriteHatBaseModel):
             # Return our (possibly) modified component list
             return componentJSON
 
-        return dict()
+        return {}
 
 
     def populateComponentChildren(self, model, prefix='', level=1):
@@ -329,7 +328,7 @@ class BaseReport(WriteHatBaseModel):
         log.debug("report.flattenComponentIDs() called")
         componentIDs = []
         for c in componentJSON:
-            if not 'uuid' in c or not c['uuid']:
+            if 'uuid' not in c or not c['uuid']:
                 continue
             log.debug("  Component: {0}".format(c['uuid']))
             componentIDs.append(c['uuid'])
@@ -350,13 +349,13 @@ class BaseReport(WriteHatBaseModel):
         # keeps track of old and new component IDs (if later find-and-replacing is required)
         # used to prevent references to other components from breaking
         if componentIdMappings is None:
-            componentIdMappings = dict()
+            componentIdMappings = {}
 
         clonedJSON = []
 
         for component in componentJSON:
 
-            if not 'uuid' in component or not component['uuid']:
+            if 'uuid' not in component or not component['uuid']:
                 continue
             clonedComponent = BaseComponent.get(component['uuid']).clone(reportParent=reportParent, templatableOnly=templatableOnly)
             clonedComponent = {'uuid': str(clonedComponent.id), 'type': component['type']}
@@ -408,10 +407,14 @@ class BaseReport(WriteHatBaseModel):
         rendered_components = self.renderComponents()
 
         master_template = get_template('reportTemplates/reportBase.html')
-        #page_footer = get_template('reportTemplates/reportPageFooter.html')
-        rendered = master_template.render({ 'report': self, 'components': rendered_components, 'footer': self.pageTemplate.renderFooter(), 'header': self.pageTemplate.renderHeader() })
-
-        return rendered
+        return master_template.render(
+            {
+                'report': self,
+                'components': rendered_components,
+                'footer': self.pageTemplate.renderFooter(),
+                'header': self.pageTemplate.renderHeader(),
+            }
+        )
 
 
     # Returns a list of rendered report components
@@ -495,8 +498,7 @@ class BaseReport(WriteHatBaseModel):
         yields all Component() objects in report, flattened
         '''
 
-        for component in self.flattened_components:
-            yield component
+        yield from self.flattened_components
 
 
 
@@ -517,17 +519,14 @@ class Report(BaseReport):
 
         rendered_components = self.renderComponents()
         master_template = get_template('reportTemplates/reportBase.html')
-        # Note: {{ pageFooter }} must occur before rendered components in
-        # reportBase.html or it will only appear on the last page. To edit
-        # footer contents, modify templates/reportTemplates/reportPageFooter.html
-        rendered = master_template.render({ 
-            'components': rendered_components,
-            'report': self,
-            'footer': self.pageTemplate.renderFooter(),
-            'header': self.pageTemplate.renderHeader(),
-        })
-
-        return rendered
+        return master_template.render(
+            {
+                'components': rendered_components,
+                'report': self,
+                'footer': self.pageTemplate.renderFooter(),
+                'header': self.pageTemplate.renderHeader(),
+            }
+        )
 
 
     @property
@@ -561,9 +560,7 @@ class Report(BaseReport):
         # if no findings are specified, give all of them
         if not requested_finding_uuids:
             for fgroup in self.engagement.fgroups:
-                for finding in fgroup:
-                    findings.append(finding)
-
+                findings.extend(iter(fgroup))
         else:
             log.debug(f'Validating findings: {requested_finding_uuids}')
             # make sure all UUIDs are valid findings
@@ -571,9 +568,11 @@ class Report(BaseReport):
 
             self._findings = json.dumps([str(u) for u in validated_finding_uuids], cls=UUIDEncoder)
 
-            for finding in self.engagement.findings:
-                if UUID(str(finding.id)) in validated_finding_uuids:
-                    findings.append(finding)
+            findings.extend(
+                finding
+                for finding in self.engagement.findings
+                if UUID(str(finding.id)) in validated_finding_uuids
+            )
 
         return findings
 
@@ -597,7 +596,7 @@ class Report(BaseReport):
 
 
         log.debug(f'Called {self.className}.fgroups()')
-        fgroups = dict()
+        fgroups = {}
 
         requested_finding_uuids = list(self.finding_uuids)
         validated_finding_uuids = []
@@ -687,7 +686,7 @@ class Report(BaseReport):
         try:
             if len(self._findings):
                 finding_uuids = [UUID(f) for f in json.loads(self._findings)]
-                log.debug('FINDING UUIDS: ' + str(finding_uuids))
+                log.debug(f'FINDING UUIDS: {finding_uuids}')
                 return finding_uuids
             return []
         except json.JSONDecodeError:
@@ -752,12 +751,13 @@ def getSavedReports():
     Used for bootstrap select menu
     '''
     log.debug('getSavedReports() called')
-    savedReportList = []
-    for report in SavedReport.objects.all():
-        savedReportList.append({
+    savedReportList = [
+        {
             'id': str(report.id),
-            'name': f'{report.name} ({report.numComponents:,} components)'
-        })
+            'name': f'{report.name} ({report.numComponents:,} components)',
+        }
+        for report in SavedReport.objects.all()
+    ]
 
     return sorted(savedReportList, key=lambda x: x['name'])
 

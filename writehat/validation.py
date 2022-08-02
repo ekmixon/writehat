@@ -24,7 +24,7 @@ allowed_for_names = set(string.ascii_lowercase + string.ascii_uppercase + string
     """!()*+, -./:?@[]_&\"""")
 
 def isValidName(name):
-    if not (type(name) == str and len(name) > 0 and (set(name) <= allowed_for_names)):
+    if type(name) != str or len(name) <= 0 or set(name) > allowed_for_names:
         raise ValidationError(f'Invalid Name: {name}')
 
 # use this if you need a boolean return
@@ -41,16 +41,20 @@ def isValidNameBool(name):
 allowed_for_strict_names = set(string.ascii_lowercase + string.ascii_uppercase + string.digits + '_')
 
 def isValidStrictName(name):
-    if type(name) == str and len(name) > 0 and (set(name) <= allowed_for_strict_names):
-        return True
-    return False
+    return (
+        type(name) == str
+        and len(name) > 0
+        and set(name) <= allowed_for_strict_names
+    )
 
 
 allowed_for_model_hints = set(string.ascii_lowercase + string.ascii_uppercase + ' ')
 def isValidModelHint(name):
-    if type(name) == str and len(name) > 0 and (set(name) <= allowed_for_model_hints):
-        return True
-    return False
+    return (
+        type(name) == str
+        and len(name) > 0
+        and set(name) <= allowed_for_model_hints
+    )
 
 def isValidUUID(uuid_string):
 
@@ -63,18 +67,12 @@ def isValidUUID(uuid_string):
 
 def isValidUUIDList(uuidlist):
 
-    for x in uuidlist:
-        if isValidUUID(x) == False:
-            return False
-    return True
+    return all(isValidUUID(x) != False for x in uuidlist)
 
 
 def isValidCategoryName(categoryName):
 
-    isValidated = False
-    if categoryName:
-        isValidated = True
-    return isValidated
+    return bool(categoryName)
 
 
 def isValidComponentJSON(componentJSON):
@@ -100,7 +98,7 @@ def isValidJSONList(j):
 
     try:
         l = json.loads(j)
-        if type(l) == list and all([type(e) == str for e in l]):
+        if type(l) == list and all(type(e) == str for e in l):
             return l
         else:
             raise ValidationError(f'Invalid list: {j}')
@@ -125,7 +123,7 @@ def isValidComponentList(componentList, new=False):
 
         # make sure all keys are valid names
         for k,v in component.items():
-            if not k in ['uuid', 'type', 'children']:
+            if k not in ['uuid', 'type', 'children']:
                 raise ValidationError(f'Invalid component key: "{k}"')
             if k == 'children':
                 if type(v) == list:
@@ -133,16 +131,18 @@ def isValidComponentList(componentList, new=False):
                     isValidComponentList(v, new=new)
                 else:
                     raise ValidationError(f'Invalid component children: "{v}"')
-            else:
-                if not isValidNameBool(v):
-                    raise ValidationError(f'Invalid component value: "{v}"')
+            elif not isValidNameBool(v):
+                raise ValidationError(f'Invalid component value: "{v}"')
 
         # make sure UUID value is valid
         if not new:
             if not isValidUUID(component['uuid']):
                 raise ValidationError(f'Invalid component UUID: {component["uuid"]}')
         elif 'uuid' in component:
-            if not (isValidUUID(component['uuid']) or len(component['uuid']) == 0):
+            if (
+                not isValidUUID(component['uuid'])
+                and len(component['uuid']) != 0
+            ):
                 raise ValidationError(f'Invalid component UUID: {component["uuid"]}')
 
 
@@ -151,9 +151,8 @@ def isRecursiveSafe(rootNode,currentNode,targetNode,targetParent):
     from writehat.lib.findingCategory import DatabaseFindingCategory
     solved = False
     currentParent = DatabaseFindingCategory.objects.get(id=currentNode.categoryParent)
-    observedParents = []
-    observedParents.append(currentNode.id)
-    while solved == False:
+    observedParents = [currentNode.id]
+    while not solved:
         # manually change the parent of the result we are trying to simulate
         if str(currentNode.id) == str(targetNode):
             currentParent = DatabaseFindingCategory.objects.get(id=targetParent)
@@ -165,35 +164,31 @@ def isRecursiveSafe(rootNode,currentNode,targetNode,targetParent):
         # if it wasnt already there, add it now
         observedParents.append(currentParent.id)
 
-        # if the current parent is the root node, and we haven't failed yet, we're good.
         if currentParent.id == rootNode.id:
             return True
-            
-        # this round is inconclusive. we neither failed the observed parents check, nor did we reach the root node. Move up the chain and try again.
-        else:
-            # we move up one level
-            currentNode = currentParent
 
-            # new parent to the current node
-            currentParent = DatabaseFindingCategory.objects.get(id=currentNode.categoryParent)
+        # we move up one level
+        currentNode = currentParent
+
+        # new parent to the current node
+        currentParent = DatabaseFindingCategory.objects.get(id=currentNode.categoryParent)
     return True
 
 
 def isValidParent(uuid,parentUUID):
     from writehat.lib.findingCategory import DatabaseFindingCategory
     rootNode = DatabaseFindingCategory.objects.filter(categoryParent__isnull=True)[0]
-    
-    # if the uuid is the same as the parent, no need to go further - thats bad
+
     if uuid == parentUUID:
         raise ValidationError('circular reference')
-    else:
-        # all existing category nodes
-        allCategories = DatabaseFindingCategory.objects.all()
+    # all existing category nodes
+    allCategories = DatabaseFindingCategory.objects.all()
         # loop through every node and make sure its not making an infinite loop.
-        for category in allCategories:
-            if category.id != rootNode.id:
-                if not isRecursiveSafe(rootNode,category,uuid,parentUUID):
-                    log.debug("isValidParent failed invinite loop check for UUID: %s" % uuid)
-                    raise ValidationError('circular reference')
-        return True
+    for category in allCategories:
+        if category.id != rootNode.id and not isRecursiveSafe(
+            rootNode, category, uuid, parentUUID
+        ):
+            log.debug(f"isValidParent failed invinite loop check for UUID: {uuid}")
+            raise ValidationError('circular reference')
+    return True
 

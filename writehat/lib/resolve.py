@@ -39,30 +39,24 @@ allModels = {
 
 def resolve(uuid, hint=''):
 
-    hints = hint.lower().split()
-
-    if hints:
-        # check for an exact match
+    if hints := hint.lower().split():
         if len(hints) == 1 and hint[0] in allModels:
             return allModels[hint].get(id=uuid)
 
-        # see if the hints match more than one, and try each    
-        else:
-            for modelName, modelCandidate in allModels.items():
+        for modelName, modelCandidate in allModels.items():
                 # if all hints match
-                if all([h in modelName for h in hints]):
-                    if modelName == 'reportcomponent':
-                        try:
-                            return modelCandidate.get(id=uuid)
-                        except ComponentError:
-                            pass
-                    else:
-                        try:
-                            return modelCandidate.get(id=uuid)
-                        except modelCandidate.DoesNotExist:
-                            pass
+            if all(h in modelName for h in hints):
+                if modelName == 'reportcomponent':
+                    try:
+                        return modelCandidate.get(id=uuid)
+                    except ComponentError:
+                        pass
+                else:
+                    try:
+                        return modelCandidate.get(id=uuid)
+                    except modelCandidate.DoesNotExist:
+                        pass
 
-    # we have no hint, we have to try all of them  :(
     else:
         for modelName, modelCandidate in allModels.items():
             if modelName in ('component', 'reportcomponent'):
@@ -93,28 +87,23 @@ def resolve_filter(*args, **kwargs):
     if hints:
         # check for an exact match
         if len(hints) == 1 and hint[0] in allModels:
-            for match in allModels[hint].objects.filter(*args, **kwargs):
-                results.append(match)
-
-        # see if the hints match more than one, and try each    
+            results.extend(iter(allModels[hint].objects.filter(*args, **kwargs)))
         else:
             for modelName, modelCandidate in allModels.items():
                 # if all hints match
-                if all([h in modelName for h in hints]):
-                    if modelName not in ('reportcomponent',):
-                        try:
-                            for match in modelCandidate.objects.filter(*args, **kwargs):
-                                results.append(match)
-                        except modelCandidate.DoesNotExist:
-                            pass
+                if all(h in modelName for h in hints) and modelName not in (
+                    'reportcomponent',
+                ):
+                    try:
+                        results.extend(iter(modelCandidate.objects.filter(*args, **kwargs)))
+                    except modelCandidate.DoesNotExist:
+                        pass
 
-    # we have no hint, we have to try all of them  :(
     else:
         for modelName, modelCandidate in allModels.items():
             if modelName not in ('reportcomponent',):
                 try:
-                    for match in modelCandidate.objects.filter(*args, **kwargs):
-                        results.append(match)
+                    results.extend(iter(modelCandidate.objects.filter(*args, **kwargs)))
                 except modelCandidate.DoesNotExist:
                     pass
 

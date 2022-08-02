@@ -9,18 +9,13 @@ class DatabaseFindingCategory(WriteHatBaseModel):
 
     def getCategoryBreadcrumbs(self):
         from writehat.lib.findingCategory import DatabaseFindingCategory
-        breadcrumbs = []
-        breadcrumbs.append(self.name)
+        breadcrumbs = [self.name]
         currentNode = self
         rootNode = DatabaseFindingCategory.getRootNode()
-        while 1:
-            #print(currentNode.categoryParent)
-            if currentNode.categoryParent == rootNode.id:
-                break
-            else:
-                parentNode = DatabaseFindingCategory.objects.get(id=currentNode.categoryParent)
-                breadcrumbs.append(parentNode.name)
-                currentNode = parentNode
+        while 1 and currentNode.categoryParent != rootNode.id:
+            parentNode = DatabaseFindingCategory.objects.get(id=currentNode.categoryParent)
+            breadcrumbs.append(parentNode.name)
+            currentNode = parentNode
         #print(breadcrumbs)
         return breadcrumbs
 

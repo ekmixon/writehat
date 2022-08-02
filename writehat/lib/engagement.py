@@ -64,7 +64,7 @@ class Engagement(WriteHatBaseModel):
         totalFindingCount = 0
         fgroups = self.fgroups
         for group in fgroups:
-            for finding in group.findings:
+            for _ in group.findings:
                 totalFindingCount += 1
 
         return totalFindingCount
@@ -76,9 +76,7 @@ class Engagement(WriteHatBaseModel):
         findings = []
 
         for fgroup in self.fgroups:
-            for finding in fgroup:
-                findings.append(finding)
-
+            findings.extend(iter(fgroup))
         return findings
 
 
@@ -86,7 +84,7 @@ class Engagement(WriteHatBaseModel):
     def clone(self, templatableOnly=False):
 
         # keeps track of old and new UUIDs so we can find-and-replace in-text references
-        changedIDs = dict()
+        changedIDs = {}
 
         # clone engagement
         clonedEngagement = super().clone()
@@ -97,14 +95,14 @@ class Engagement(WriteHatBaseModel):
             clonedFgroup = fgroup.clone(name=fgroup.name)
             clonedFgroup.engagementParent = clonedEngagement.id
             clonedFgroup.save(updateTimestamp=False)
-            changedIDs.update({str(fgroup.id).lower(): str(clonedFgroup.id).lower()})
+            changedIDs[str(fgroup.id).lower()] = str(clonedFgroup.id).lower()
 
             # clone findings
             for finding in fgroup:
                 clonedFinding = finding.clone(name=finding.name)
                 clonedFinding.findingGroup = clonedFgroup.id
                 clonedFinding.save(updateTimestamp=False)
-                changedIDs.update({str(finding.id).lower(): str(clonedFinding.id).lower()})
+                changedIDs[str(finding.id).lower()] = str(clonedFinding.id).lower()
 
         # replace misc UUID references in findings
         clonedEngagement._fgroup_objects = None

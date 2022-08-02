@@ -80,9 +80,9 @@ markdown_attrs = {
 
 def to_bool(s):
 
-    if any([m == s.lower() for m in ['1', 'yes', 'true']]):
+    if s.lower() in ['1', 'yes', 'true']:
         return True
-    elif any([m == s.lower() for m in ['0', 'no', 'false']]):
+    elif s.lower() in ['0', 'no', 'false']:
         return False
     else:
         return s
@@ -108,7 +108,7 @@ def match_references(markdown_text, name, context, constructor, template, regex,
             field = field.lower().strip()
             # assume "field" means "field=true"
             if field in allowed_fields:
-                match_context.update({field: True})
+                match_context[field] = True
             else:
                 try:
                     k,v = field.split('=')
@@ -126,7 +126,7 @@ def match_references(markdown_text, name, context, constructor, template, regex,
                     obj = constructor(id=uuid)
                 except Exception as e:
                     log.error(e)
-                match_context.update({name: obj})
+                match_context[name] = obj
             else:
                 try:
                     obj = constructor(context)
@@ -137,7 +137,7 @@ def match_references(markdown_text, name, context, constructor, template, regex,
                 except AttributeError:
                     pass
 
-            match_context.update({name: obj})
+            match_context[name] = obj
 
         else:
             match_context = {name: match_context}
@@ -176,14 +176,9 @@ def user_template_replace(markdown_text, context):
 
     user_context = {}
 
-    # engagement
-    engagement = context.get('engagement', '')
-    if engagement:
+    if engagement := context.get('engagement', ''):
         user_context['engagement'] = engagement.name
 
-    # customer
-    company_keywords = ('customer', 'client', 'company', '')
-    if engagement:
         customer = context.get('engagement').customer
     else:
         from writehat.lib.customer import Customer
@@ -198,6 +193,8 @@ def user_template_replace(markdown_text, context):
             phone='777-777-7777'
         )
     if customer:
+        # customer
+        company_keywords = ('customer', 'client', 'company', '')
         for k in company_keywords:
             if k:
                 user_context[k] = customer.name
@@ -214,9 +211,7 @@ def user_template_replace(markdown_text, context):
             user_context[f'{k}contact'] = customer.POC
             user_context[f'{k}phone'] = customer.phone
 
-    # report
-    report = context.get('report', '')
-    if report:
+    if report := context.get('report', ''):
         user_context['report'] = report.name
 
     new_markdown_text = str(markdown_text)
@@ -248,7 +243,7 @@ def render_markdown(markdown_text, context=None):
         engagement = False
 
     valid_findings = {}
-    
+
     if report and engagement:
         valid_findings = {str(f.id).lower(): f for f in report.findings}
 
@@ -259,14 +254,12 @@ def render_markdown(markdown_text, context=None):
             # skip findings if it's not an engagement report
             # or if they're not in the allowed list
             if name == 'finding':
-                if engagement and uuid in valid_findings:
-                    for finding in report.findings:
-                        if uuid == str(finding.id).lower():
-                            ref_context['finding'] = finding
-                else:
+                if not engagement or uuid not in valid_findings:
                     continue
 
-            # populate component.index
+                for finding in report.findings:
+                    if uuid == str(finding.id).lower():
+                        ref_context['finding'] = finding
             elif name == 'component':
                 for component in report.flattened_components:
                     if str(component.id).lower() == uuid:

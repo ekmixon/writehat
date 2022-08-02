@@ -94,7 +94,7 @@ class WriteHatBaseModel(models.Model):
         if destinationClass is None:
             destinationClass = self.__class__
         if name is None:
-            name = 'Clone of ' + self.name
+            name = f'Clone of {self.name}'
 
         destinationObject = destinationClass()
 
@@ -103,7 +103,7 @@ class WriteHatBaseModel(models.Model):
 
         for fieldName in sourceFieldNames:
             if fieldName not in excludedFieldNames \
-                and fieldName in destinationFieldNames:
+                    and fieldName in destinationFieldNames:
 
                 log.debug(f'  copying {fieldName}')
                 fieldValue = getattr(self, fieldName)
@@ -122,12 +122,10 @@ class WriteHatBaseModel(models.Model):
         Retrieves all objects and compiles human-friendly descriptions into list
         Used for bootstrap select menu
         '''
-        selections = []
-        for page in cls.objects.all():
-            selections.append({
-                'id': str(page.id),
-                'name': f'{page.name}'
-            })
+        selections = [
+            {'id': str(page.id), 'name': f'{page.name}'}
+            for page in cls.objects.all()
+        ]
 
         return sorted(selections, key=lambda x: x['name'])
 
@@ -188,17 +186,17 @@ class WriteHatBaseModel(models.Model):
 
         if formClass is None:
             formClass = self.formClass
-        
-        initialFormData = dict()
+
+        initialFormData = {}
         validFormFields = self._formFields(formClass=formClass)
         log.debug(f'validFormFields: {validFormFields}')
 
         for label,value in self._modelToForm().items():
             if label in validFormFields:
-                initialFormData.update({label: value})
+                initialFormData[label] = value
                 log.debug(f'   Successfully copied: {label}')
-            #else:
-            #    log.debug(f'   Did not copy: {label}')
+                #else:
+                #    log.debug(f'   Did not copy: {label}')
 
         #log.debug(f'initialFormData: {initialFormData}')
 
@@ -228,10 +226,8 @@ class WriteHatBaseModel(models.Model):
         Override in child class if needed
         '''
 
-        # by default, just return dictionary with all form fields
-        modelFields = form.cleaned_data
         #log.debug(f'_formToModel() modelFields: {modelFields}')
-        return modelFields
+        return form.cleaned_data
 
 
     @property
@@ -278,11 +274,10 @@ class WriteHatBaseModel(models.Model):
 
         if updateTimestamp:
             return super().save(*args, **kwargs)
-        else:
-            #super().save(update_fields=[])
-            excluded_fields = ['modifiedDate']
-            update_fields = [f.name for f in self._meta.fields if f.name not in excluded_fields and not f.auto_created and not f.primary_key]
-            return super().save(*args, update_fields=update_fields, **kwargs)
+        #super().save(update_fields=[])
+        excluded_fields = ['modifiedDate']
+        update_fields = [f.name for f in self._meta.fields if f.name not in excluded_fields and not f.auto_created and not f.primary_key]
+        return super().save(*args, update_fields=update_fields, **kwargs)
 
 
 
@@ -292,24 +287,21 @@ class WriteHatBaseModel(models.Model):
         NOTE: uses regex, do not expose directly to user
         '''
 
-        if str1 and str2 and type(str1) == str and type(str2) == str:
-            if caseSensitive:
-                r = re.compile(str1)
-            else:
-                r = re.compile(str1, re.IGNORECASE)
-
-            for f in self._meta.fields:
-                try:
-                    k = f.name
-                    v = self.getattr(k)
-                    markdown = getattr(f, 'markdown', False)
-                    if not (markdownOnly and not markdown):
-                        try:
-                            setattr(self, k, r.sub(str2, v))
-                        except AttributeError:
-                            pass
-                except (AttributeError, TypeError):
-                    pass
+        if not str1 or not str2 or type(str1) != str or type(str2) != str:
+            return
+        r = re.compile(str1) if caseSensitive else re.compile(str1, re.IGNORECASE)
+        for f in self._meta.fields:
+            try:
+                k = f.name
+                v = self.getattr(k)
+                markdown = getattr(f, 'markdown', False)
+                if not markdownOnly or markdown:
+                    try:
+                        setattr(self, k, r.sub(str2, v))
+                    except AttributeError:
+                        pass
+            except (AttributeError, TypeError):
+                pass
 
 
     def simpleRedact(self, customer):
@@ -317,8 +309,7 @@ class WriteHatBaseModel(models.Model):
         Given a customer object, replace all instances of customer information with generic template keywords
         '''
         for f in customer._meta.fields:
-            v = getattr(customer, f.name, '')
-            if v:
+            if v := getattr(customer, f.name, ''):
                 try:
                     self.find_and_replace(re.escape(v), '{ ' + f'customer.{f.name}' + ' }', markdownOnly=False)
                 except TypeError:

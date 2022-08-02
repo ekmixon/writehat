@@ -98,7 +98,7 @@ class BaseComponent():
         componentClass = settings.COMPONENT_CLASSES[componentType]
 
         componentModel = JSONComponentModel(name=componentClass.default_name, validFields=componentClass.validFields(), \
-            reportParent=reportParent, databaseParent=databaseParent)
+                reportParent=reportParent, databaseParent=databaseParent)
 
         # set initial field values to their defaults
         default_values = {k: v.defaultValue for k,v in componentClass.fieldList.items()}
@@ -113,9 +113,7 @@ class BaseComponent():
         })
         componentModel.save()
 
-        component = cls.get(componentModel.id, reportModel=reportModel)
-
-        return component
+        return cls.get(componentModel.id, reportModel=reportModel)
 
 
     @classmethod
@@ -132,12 +130,8 @@ class BaseComponent():
         except DatabaseError:
             raise ComponentDatabaseError(f'No component found with ID {id}')
 
-        #log.debug(f"componentModel in BaseComponent.get.__new__(): {componentModel}")
-
-        component = componentClass(componentModel, reportModel=reportModel)
-
         #return instantiated component class
-        return component
+        return componentClass(componentModel, reportModel=reportModel)
 
 
     def __init__(self, componentModel, reportModel=None):
@@ -195,8 +189,7 @@ class BaseComponent():
         clonedComponentModel['type'] = self._model['type']
         clonedComponentModel.save()
 
-        clonedComponent = BaseComponent.get(clonedComponentModel.id)
-        return clonedComponent
+        return BaseComponent.get(clonedComponentModel.id)
 
 
     def find_and_replace(self, str1, str2, caseSensitive=True, markdownOnly=True):
@@ -205,19 +198,16 @@ class BaseComponent():
         NOTE: uses regex, do not expose directly to user
         '''
 
-        if str1 and str2 and type(str1) == str and type(str2) == str:
-            if caseSensitive:
-                r = re.compile(str1)
-            else:
-                r = re.compile(str1, re.IGNORECASE)
-
-            validFields = self.validFields()
-            validFields.update(self._model.startingFields)
-            for k,v in self._model.items():
-                field = validFields.get(k, '')
-                markdown = getattr(field, 'markdown', False)
-                if field and type(v) == str and not (markdownOnly and not markdown):
-                    self._model[k] = r.sub(str2, v)
+        if not str1 or not str2 or type(str1) != str or type(str2) != str:
+            return
+        r = re.compile(str1) if caseSensitive else re.compile(str1, re.IGNORECASE)
+        validFields = self.validFields()
+        validFields.update(self._model.startingFields)
+        for k,v in self._model.items():
+            field = validFields.get(k, '')
+            markdown = getattr(field, 'markdown', False)
+            if field and type(v) == str and (not markdownOnly or markdown):
+                self._model[k] = r.sub(str2, v)
 
 
     def getattr(self, attr, default=''):
@@ -226,9 +216,7 @@ class BaseComponent():
         and replaces it with "default" if it's missing or blank
         '''
 
-        attr = self._model.get(attr, '')
-        if not attr:
-            attr = default
+        attr = self._model.get(attr, '') or default
         return attr
 
 
@@ -340,7 +328,10 @@ class BaseComponent():
         template = get_template(self.htmlTemplate)
         context = self.preprocess(context=context)
         contentHTML = template.render(context)
-        styleHTML = get_template(f'snippets/componentCSS.html').render({'component': self.type})
+        styleHTML = get_template('snippets/componentCSS.html').render(
+            {'component': self.type}
+        )
+
         return styleHTML + contentHTML
 
 
@@ -418,14 +409,18 @@ class BaseComponent():
         id = uuid.UUID(str(id))
 
         # first look in the report database
-        result = JSONComponentModel._mongo_op(settings.MONGO_DB['report_' + JSONComponentModel._collection].find_one, \
-            {'_id': id, 'type': {'$exists': True}}, {'type': True, '_id': False})
+        result = JSONComponentModel._mongo_op(
+            settings.MONGO_DB[f'report_{JSONComponentModel._collection}'].find_one,
+            {'_id': id, 'type': {'$exists': True}},
+            {'type': True, '_id': False},
+        )
+
 
         # then look in the main database if it's not found
         if not result:
             log.debug("Component type not found in report_components; trying components")
             result = JSONComponentModel._mongo_op(settings.MONGO_DB[JSONComponentModel._collection].find_one, \
-                {'_id': id, 'type': {'$exists': True}}, {'type': True, '_id': False})
+                    {'_id': id, 'type': {'$exists': True}}, {'type': True, '_id': False})
 
         if result:
             log.debug(f"Found component type: {result['type']}")
@@ -493,8 +488,7 @@ class BaseComponent():
 
     def __iter__(self):
 
-        for key,value in self._model.items():
-            yield key,value
+        yield from self._model.items()
 
 
     def __getattr__(self, attr):
@@ -543,7 +537,7 @@ class BaseComponent():
         # all components have these
         validFields = dict(cls.startingFields)
         # these ones are specific to the component
-        validFields.update(cls.fieldList)
+        validFields |= cls.fieldList
         return validFields
 
 

@@ -18,28 +18,22 @@ class DREAD:
     def severity(self):
 
         if self.score == 0:
-            severity = "Informational"
+            return "Informational"
         elif self.score < 2.0:
-            severity  = "Low"
+            return "Low"
         elif self.score < 5.0:
-            severity = "Medium"
+            return "Medium"
         elif self.score < 8.0:
-            severity = "High"
+            return "High"
         else:
-            severity = "Critical"
-        return severity
+            return "Critical"
 
    
     @staticmethod
     def createVector(attributeList):
         dread_keys = ['dreadDamage','dreadReproducibility','dreadExploitability','dreadAffectedUsers','dreadDiscoverability'] # The keys you want
-        dreadDict = {}
-        for k, v in attributeList.items(): 
-            if k in dread_keys:
-                dreadDict[k] = int(v)
-
-        dreadJSON = json.dumps(dreadDict)
-        return dreadJSON
+        dreadDict = {k: int(v) for k, v in attributeList.items() if k in dread_keys}
+        return json.dumps(dreadDict)
 
 
     @property

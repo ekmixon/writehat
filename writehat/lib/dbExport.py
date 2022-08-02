@@ -30,9 +30,6 @@ def generate_zip(files):
 def dbExport():
 
 
-    files = []
-
-
     # pull mongo data
     result = subprocess.run(['mongoexport',
                              '--collection=report_components',
@@ -43,40 +40,113 @@ def dbExport():
                              '--authenticationDatabase',
                               'admin', 
                               '--forceTableScan'], stdout=subprocess.PIPE)
- 
-    files.append(('components.json',result.stdout))
 
-
-    # pull all ORM data
-    files.append(('CVSSEngagementFinding.json',serializers.serialize('json', CVSSEngagementFinding.objects.all())))
-    files.append(('DREADEngagementFinding.json',serializers.serialize('json', DREADEngagementFinding.objects.all())))
-    files.append(('ProactiveEngagementFinding.json',serializers.serialize('json', ProactiveEngagementFinding.objects.all())))
-    files.append(('DREADFindingGroup.json',serializers.serialize('json', DREADFindingGroup.objects.all())))
-    files.append(('CVSSFindingGroup.json',serializers.serialize('json', CVSSFindingGroup.objects.all())))
-    files.append(('ProactiveFindingGroup.json',serializers.serialize('json', ProactiveFindingGroup.objects.all())))
-    files.append(('BaseFindingGroup.json',serializers.serialize('json', BaseFindingGroup.objects.all())))
-    files.append(('Engagement.json',serializers.serialize('json', Engagement.objects.all())))
-    files.append(('Report.json',serializers.serialize('json', Report.objects.all())))
-    files.append(('SavedReport.json',serializers.serialize('json', SavedReport.objects.all())))
-    files.append(('PageTemplate.json',serializers.serialize('json', PageTemplate.objects.all())))
-    files.append(('CVSSDatabaseFinding.json',serializers.serialize('json', CVSSDatabaseFinding.objects.all())))
-    files.append(('DREADDatabaseFinding.json',serializers.serialize('json', DREADDatabaseFinding.objects.all())))
-    files.append(('ProactiveDatabaseFinding.json',serializers.serialize('json', ProactiveDatabaseFinding.objects.all())))
-    files.append(('DatabaseFindingCategory.json',serializers.serialize('json', DatabaseFindingCategory.objects.all())))
-    files.append(('DREADFinding.json',serializers.serialize('json', DREADFinding.objects.all())))
-    files.append(('ProactiveFinding.json',serializers.serialize('json', ProactiveFinding.objects.all())))
-    files.append(('Revision.json',serializers.serialize('json', Revision.objects.all())))
-    files.append(('Customer.json',serializers.serialize('json', Customer.objects.all())))
-    files.append(('ImageModel.json',serializers.serialize('json', ImageModel.objects.all(),fields=["name","createdDate","modifiedDate","caption","size","findingParent","contentType","order"])))
-
+    files = [
+        ('components.json', result.stdout),
+        (
+            'CVSSEngagementFinding.json',
+            serializers.serialize('json', CVSSEngagementFinding.objects.all()),
+        ),
+        (
+            'DREADEngagementFinding.json',
+            serializers.serialize(
+                'json', DREADEngagementFinding.objects.all()
+            ),
+        ),
+        (
+            'ProactiveEngagementFinding.json',
+            serializers.serialize(
+                'json', ProactiveEngagementFinding.objects.all()
+            ),
+        ),
+        (
+            'DREADFindingGroup.json',
+            serializers.serialize('json', DREADFindingGroup.objects.all()),
+        ),
+        (
+            'CVSSFindingGroup.json',
+            serializers.serialize('json', CVSSFindingGroup.objects.all()),
+        ),
+        (
+            'ProactiveFindingGroup.json',
+            serializers.serialize('json', ProactiveFindingGroup.objects.all()),
+        ),
+        (
+            'BaseFindingGroup.json',
+            serializers.serialize('json', BaseFindingGroup.objects.all()),
+        ),
+        (
+            'Engagement.json',
+            serializers.serialize('json', Engagement.objects.all()),
+        ),
+        ('Report.json', serializers.serialize('json', Report.objects.all())),
+        (
+            'SavedReport.json',
+            serializers.serialize('json', SavedReport.objects.all()),
+        ),
+        (
+            'PageTemplate.json',
+            serializers.serialize('json', PageTemplate.objects.all()),
+        ),
+        (
+            'CVSSDatabaseFinding.json',
+            serializers.serialize('json', CVSSDatabaseFinding.objects.all()),
+        ),
+        (
+            'DREADDatabaseFinding.json',
+            serializers.serialize('json', DREADDatabaseFinding.objects.all()),
+        ),
+        (
+            'ProactiveDatabaseFinding.json',
+            serializers.serialize(
+                'json', ProactiveDatabaseFinding.objects.all()
+            ),
+        ),
+        (
+            'DatabaseFindingCategory.json',
+            serializers.serialize(
+                'json', DatabaseFindingCategory.objects.all()
+            ),
+        ),
+        (
+            'DREADFinding.json',
+            serializers.serialize('json', DREADFinding.objects.all()),
+        ),
+        (
+            'ProactiveFinding.json',
+            serializers.serialize('json', ProactiveFinding.objects.all()),
+        ),
+        (
+            'Revision.json',
+            serializers.serialize('json', Revision.objects.all()),
+        ),
+        (
+            'Customer.json',
+            serializers.serialize('json', Customer.objects.all()),
+        ),
+        (
+            'ImageModel.json',
+            serializers.serialize(
+                'json',
+                ImageModel.objects.all(),
+                fields=[
+                    "name",
+                    "createdDate",
+                    "modifiedDate",
+                    "caption",
+                    "size",
+                    "findingParent",
+                    "contentType",
+                    "order",
+                ],
+            ),
+        ),
+    ]
 
     # pull images
-    for image in ImageModel.objects.all():
-        files.append((f'images/{image.id}.png',image.data))
+    files.extend(
+        (f'images/{image.id}.png', image.data)
+        for image in ImageModel.objects.all()
+    )
 
-
-    # create the zip file
-    zipfile = generate_zip(files)
-
-  
-    return zipfile
+    return generate_zip(files)

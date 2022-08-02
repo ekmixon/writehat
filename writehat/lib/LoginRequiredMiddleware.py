@@ -12,10 +12,9 @@ IGNORE_PATHS += [
     for url in getattr(settings, 'LOGIN_REQUIRED_IGNORE_PATHS', [])
 ]
 
-IGNORE_VIEW_NAMES = [
-    name
-    for name in getattr(settings, 'LOGIN_REQUIRED_IGNORE_VIEW_NAMES', [])
-]
+IGNORE_VIEW_NAMES = list(
+    getattr(settings, 'LOGIN_REQUIRED_IGNORE_VIEW_NAMES', [])
+)
 
 
 class LoginRequiredMiddleware(MiddlewareMixin):
